@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { applyRateLimit, STRICT } from '@/lib/rate-limit';
 
 const linkSchema = z.object({
   provider: z.string().min(1),
@@ -25,6 +26,9 @@ export async function POST(request: NextRequest) {
   if (authError || !user) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
+
+  const limited = applyRateLimit(`oauth:link:${user.id}`, STRICT);
+  if (limited) return limited;
 
   const body = await request.json().catch(() => null);
   const parsed = linkSchema.safeParse(body);

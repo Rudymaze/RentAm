@@ -3,10 +3,12 @@ import { getSupabaseAndUser, unauthorizedResponse, forbiddenResponse, notFoundRe
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
+
+  const { id } = await params;
 
   const listingId = req.nextUrl.searchParams.get('listing_id');
   if (!listingId) {
@@ -27,7 +29,7 @@ export async function PATCH(
   const { data: image } = await supabase
     .from('property_images')
     .select('id, display_order')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('listing_id', listingId)
     .is('deleted_at', null)
     .single();
@@ -48,7 +50,7 @@ export async function PATCH(
     const { error } = await supabase
       .from('property_images')
       .update({ display_order: 0, updated_at: now })
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) return serverErrorResponse('Failed to set primary image');
   }

@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     const headers = ['id', 'nameEn', 'nameFr', 'region', 'latitude', 'longitude', 'population', 'isActive', 'createdAt', 'updatedAt'];
     const csvRows = [
       headers.join(','),
-      ...cities.map((c) =>
+      ...cities.map((c: Record<string, unknown>) =>
         headers
           .map((h) => {
             const val = (c as any)[h] ?? '';

@@ -3,12 +3,14 @@ import { verifyAdminFromRequest } from '../../../cities/_helpers';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let adminSupabase: any;
   try {
     ({ adminSupabase } = await verifyAdminFromRequest(req));
   } catch (res) { return res as Response; }
+
+  const { id } = await params;
 
   const { data: listing, error } = await adminSupabase
     .from('property_listings')
@@ -20,7 +22,7 @@ export async function GET(
       city:cameroon_cities!city_id(name_en, name_fr, region),
       images:property_images(id, url, thumbnail_url, display_order)
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (error || !listing) {

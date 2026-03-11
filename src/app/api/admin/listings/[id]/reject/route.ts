@@ -23,13 +23,15 @@ const Schema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let userId: string;
   let adminSupabase: any;
   try {
     ({ userId, adminSupabase } = await verifyAdminFromRequest(req));
   } catch (res) { return res as Response; }
+
+  const { id } = await params;
 
   let body: unknown;
   try { body = await req.json(); } catch {
@@ -46,7 +48,7 @@ export async function POST(
   const { data: listing } = await adminSupabase
     .from('property_listings')
     .select('id, status')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (!listing) return NextResponse.json({ success: false, error: 'Listing not found' }, { status: 404 });
@@ -66,14 +68,14 @@ export async function POST(
       admin_review_notes: admin_notes,
       updated_at: now,
     })
-    .eq('id', params.id)
+    .eq('id', id)
     .select('id, title, status, rejection_reason, rejected_at')
     .single();
 
   if (error) return NextResponse.json({ success: false, error: 'Failed to reject listing' }, { status: 500 });
 
   await adminSupabase.from('listing_verification_logs').insert({
-    listing_id: params.id,
+    listing_id: id,
     admin_id: userId,
     verification_type: 'manual_rejected',
     verification_result: 'failed',
@@ -84,7 +86,7 @@ export async function POST(
   });
 
   await adminSupabase.from('listing_status_history').insert({
-    listing_id: params.id,
+    listing_id: id,
     old_status: 'pending_review',
     new_status: 'rejected',
     changed_by: userId,

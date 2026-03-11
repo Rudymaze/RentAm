@@ -3,10 +3,12 @@ import { getSupabaseAndUser, unauthorizedResponse, forbiddenResponse, notFoundRe
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
+
+  const { id } = await params;
 
   const listingId = req.nextUrl.searchParams.get('listing_id');
   if (!listingId) {
@@ -27,7 +29,7 @@ export async function POST(
   const { data: image } = await supabase
     .from('property_images')
     .select('id')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('listing_id', listingId)
     .not('deleted_at', 'is', null)
     .single();
@@ -50,7 +52,7 @@ export async function POST(
   const { data: restored, error } = await supabase
     .from('property_images')
     .update({ deleted_at: null, display_order: nextOrder, updated_at: now })
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single();
 

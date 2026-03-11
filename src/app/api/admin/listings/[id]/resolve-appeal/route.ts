@@ -16,13 +16,15 @@ const Schema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let userId: string;
   let adminSupabase: any;
   try {
     ({ userId, adminSupabase } = await verifyAdminFromRequest(req));
   } catch (res) { return res as Response; }
+
+  const { id } = await params;
 
   let body: unknown;
   try { body = await req.json(); } catch {
@@ -39,7 +41,7 @@ export async function POST(
   const { data: listing } = await adminSupabase
     .from('property_listings')
     .select('id, status')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (!listing) return NextResponse.json({ success: false, error: 'Listing not found' }, { status: 404 });
@@ -65,14 +67,14 @@ export async function POST(
   const { data: updated, error } = await adminSupabase
     .from('property_listings')
     .update(updates)
-    .eq('id', params.id)
+    .eq('id', id)
     .select('id, status')
     .single();
 
   if (error) return NextResponse.json({ success: false, error: 'Failed to resolve appeal' }, { status: 500 });
 
   await adminSupabase.from('listing_verification_logs').insert({
-    listing_id: params.id,
+    listing_id: id,
     admin_id: userId,
     verification_type: verificationType,
     verification_result: decision === 'approve' ? 'passed' : 'failed',
@@ -82,7 +84,7 @@ export async function POST(
   });
 
   await adminSupabase.from('listing_status_history').insert({
-    listing_id: params.id,
+    listing_id: id,
     old_status: 'under_appeal',
     new_status: newStatus,
     changed_by: userId,
@@ -90,5 +92,5 @@ export async function POST(
     reason: `Appeal ${decision === 'approve' ? 'approved' : 'denied'} by admin`,
   });
 
-  return NextResponse.json({ success: true, data: { listing_id: params.id, status: newStatus, decision, resolved_at: now } });
+  return NextResponse.json({ success: true, data: { listing_id: id, status: newStatus, decision, resolved_at: now } });
 }

@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 const SaveDraftSchema = z.object({
   current_step: z.number().int().min(1).max(6),
-  draft_data: z.record(z.unknown()),
+  draft_data: z.record(z.string(), z.unknown()),
   listing_id: z.string().uuid().optional().nullable(),
 });
 

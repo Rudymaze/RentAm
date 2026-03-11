@@ -4,7 +4,7 @@ import { CityFormSchema } from '@/features/cities/shared/validation';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let userId: string;
   let adminSupabase: any;
@@ -14,7 +14,7 @@ export async function PATCH(
     return res as Response;
   }
 
-  const { id } = params;
+  const { id } = await params;
 
   let body: unknown;
   try {
@@ -97,7 +97,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let adminSupabase: any;
   try {
@@ -106,7 +106,7 @@ export async function DELETE(
     return res as Response;
   }
 
-  const { id } = params;
+  const { id } = await params;
 
   const { error } = await adminSupabase
     .from('cameroon_cities')

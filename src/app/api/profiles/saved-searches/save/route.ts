@@ -2,19 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAndUser, unauthorizedResponse, serverErrorResponse } from '../../../properties/_helpers';
 import { z } from 'zod';
 
-// Simple in-memory rate limiter: 10 saves/min per user
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + 60_000 });
-    return true;
-  }
-  if (entry.count >= 10) return false;
-  entry.count++;
-  return true;
-}
+import { applyRateLimit, STRICT } from '@/lib/rate-limit';
 
 const FilterCriteriaSchema = z.object({
   cityIds: z.array(z.string()).optional(),
@@ -37,9 +25,8 @@ export async function POST(req: NextRequest) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
 
-  if (!checkRateLimit(user.id)) {
-    return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
-  }
+  const limited = applyRateLimit(`saved-search:save:${user.id}`, STRICT);
+  if (limited) return limited;
 
   let body: unknown;
   try {

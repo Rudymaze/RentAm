@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAndUser, unauthorizedResponse, forbiddenResponse, CAM_BOUNDS } from '../_helpers';
 import { reverseGeocode } from '@/features/geolocation/services/geocodingService';
 import { z } from 'zod';
+import { applyRateLimit, EXTERNAL } from '@/lib/rate-limit';
 
 const Schema = z.object({
   latitude: z.number().min(-90).max(90),
@@ -11,6 +12,9 @@ const Schema = z.object({
 export async function POST(req: NextRequest) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
+
+  const limited = applyRateLimit(`reverse-geocode:${user.id}`, EXTERNAL);
+  if (limited) return limited;
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   if (!profile || !['landlord', 'agent'].includes(profile.role)) {

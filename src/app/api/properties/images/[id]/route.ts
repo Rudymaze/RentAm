@@ -3,10 +3,12 @@ import { getSupabaseAndUser, unauthorizedResponse, forbiddenResponse, notFoundRe
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
+
+  const { id } = await params;
 
   const listingId = req.nextUrl.searchParams.get('listing_id');
   if (!listingId) {
@@ -27,7 +29,7 @@ export async function DELETE(
   const { data: image } = await supabase
     .from('property_images')
     .select('id, display_order')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('listing_id', listingId)
     .is('deleted_at', null)
     .single();
@@ -40,17 +42,19 @@ export async function DELETE(
   const { error } = await supabase
     .from('property_images')
     .update({ deleted_at: now, updated_at: now })
-    .eq('id', params.id);
+    .eq('id', id);
 
   if (error) return serverErrorResponse('Failed to delete image');
 
   // Decrement display_order for images after the deleted one
-  await supabase.rpc('decrement_image_order', {
-    p_listing_id: listingId,
-    p_min_order: image.display_order,
-  }).catch(() => {
+  try {
+    await supabase.rpc('decrement_image_order', {
+      p_listing_id: listingId,
+      p_min_order: image.display_order,
+    });
+  } catch {
     // RPC may not exist; fall back to manual update
-  });
+  }
 
   return NextResponse.json({ success: true });
 }

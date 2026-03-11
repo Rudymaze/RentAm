@@ -4,15 +4,17 @@ import { listingFormSchema } from '@/features/properties/utils/validation';
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
 
+  const { id } = await params;
+
   const { data: listing, error } = await supabase
     .from('property_listings')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (error || !listing) return notFoundResponse('Listing not found');
@@ -27,15 +29,17 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
 
+  const { id } = await params;
+
   const { data: listing, error: fetchError } = await supabase
     .from('property_listings')
     .select('id, created_by, status')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (fetchError || !listing) return notFoundResponse('Listing not found');
@@ -89,7 +93,7 @@ export async function PUT(
   const { data: updated, error } = await supabase
     .from('property_listings')
     .update(updates)
-    .eq('id', params.id)
+    .eq('id', id)
     .select('id, title, status, updated_at')
     .single();
 

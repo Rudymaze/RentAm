@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { applyRateLimit, MODERATE } from '@/lib/rate-limit';
 
 const AddFavoriteSchema = z.object({
   cityId: z.string().uuid('Invalid city ID'),
@@ -24,6 +25,9 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
+
+  const limited = applyRateLimit(`cities:fav:${user.id}`, MODERATE);
+  if (limited) return limited;
 
   let body: unknown;
   try {

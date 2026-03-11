@@ -3,19 +3,21 @@ import { verifyAdminFromRequest } from '../../../../cities/_helpers';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let adminSupabase: any;
   try {
     ({ adminSupabase } = await verifyAdminFromRequest(req));
   } catch (res) { return res as Response; }
 
+  const { id } = await params;
+
   const limit = Math.min(100, Math.max(1, parseInt(req.nextUrl.searchParams.get('limit') ?? '50', 10)));
 
   const { data: listing } = await adminSupabase
     .from('property_listings')
     .select('id, status')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (!listing) return NextResponse.json({ success: false, error: 'Listing not found' }, { status: 404 });
@@ -28,7 +30,7 @@ export async function GET(
       auto_verification_flags, verified_at, created_at,
       admin:profiles!admin_id(id, full_name)
     `)
-    .eq('listing_id', params.id)
+    .eq('listing_id', id)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -37,7 +39,7 @@ export async function GET(
   return NextResponse.json({
     success: true,
     data: {
-      listing_id: params.id,
+      listing_id: id,
       current_status: listing.status,
       history: logs ?? [],
       total: (logs ?? []).length,

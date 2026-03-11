@@ -15,13 +15,15 @@ const Schema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let userId: string;
   let adminSupabase: any;
   try {
     ({ userId, adminSupabase } = await verifyAdminFromRequest(req));
   } catch (res) { return res as Response; }
+
+  const { id } = await params;
 
   let body: unknown = {};
   try { body = await req.json(); } catch { /* empty body ok */ }
@@ -36,7 +38,7 @@ export async function POST(
   const { data: listing } = await adminSupabase
     .from('property_listings')
     .select('id, status')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (!listing) return NextResponse.json({ success: false, error: 'Listing not found' }, { status: 404 });
@@ -57,7 +59,7 @@ export async function POST(
       admin_review_notes: admin_notes ?? null,
       updated_at: now,
     })
-    .eq('id', params.id)
+    .eq('id', id)
     .select('id, title, status, approved_at')
     .single();
 
@@ -65,7 +67,7 @@ export async function POST(
 
   // Log verification
   await adminSupabase.from('listing_verification_logs').insert({
-    listing_id: params.id,
+    listing_id: id,
     admin_id: userId,
     verification_type: 'manual_approved',
     verification_result: 'passed',
@@ -76,7 +78,7 @@ export async function POST(
 
   // Log status history
   await adminSupabase.from('listing_status_history').insert({
-    listing_id: params.id,
+    listing_id: id,
     old_status: 'pending_review',
     new_status: 'active',
     changed_by: userId,

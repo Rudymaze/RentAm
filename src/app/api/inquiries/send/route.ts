@@ -8,7 +8,7 @@ const BodySchema = z.object({
   property_id: z.string().uuid(),
   template_type: z.enum(TEMPLATE_TYPES),
   message: z.string().min(20).max(500),
-  contact_preferences: z.record(z.unknown()).optional(),
+  contact_preferences: z.record(z.string(), z.unknown()).optional(),
   attachments: z.array(z.string()).optional(),
 });
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { applyRateLimit, MODERATE } from '@/lib/rate-limit';
 import { validateFullName, validatePhoneNumber } from '@/features/profile/utils/validation';
 
 function makeSupabase(cookieStore: Awaited<ReturnType<typeof cookies>>) {
@@ -46,6 +47,9 @@ export async function PATCH(req: NextRequest) {
   if (authError || !user) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
+
+  const limited = applyRateLimit(`profile:patch:${user.id}`, MODERATE);
+  if (limited) return limited;
 
   let body: Record<string, unknown>;
   try {

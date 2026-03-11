@@ -11,7 +11,7 @@ const Schema = z.object({
     description_detailed: z.boolean().optional(),
     landlord_verified: z.boolean().optional(),
   }).optional(),
-  photo_verification: z.record(z.unknown()).optional(),
+  photo_verification: z.record(z.string(), z.unknown()).optional(),
   admin_notes: z.string().max(1000).optional(),
 });
 

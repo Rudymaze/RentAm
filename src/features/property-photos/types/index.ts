@@ -36,7 +36,7 @@ const ALLOWED_MIME = ['image/jpeg', 'image/png'] as const;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 export const uploadImageSchema = z.object({
-  mime_type: z.enum(ALLOWED_MIME, { errorMap: () => ({ message: 'Only JPEG and PNG files are allowed' }) }),
+  mime_type: z.enum(ALLOWED_MIME, { error: 'Only JPEG and PNG files are allowed' }),
   file_size: z
     .number()
     .max(MAX_FILE_SIZE, 'File must be smaller than 5 MB'),

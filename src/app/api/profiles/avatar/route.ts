@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { applyRateLimit, STRICT } from '@/lib/rate-limit';
 import { validateAvatarFile } from '@/features/profile/utils/validation';
 
 export async function POST(req: NextRequest) {
@@ -20,6 +21,9 @@ export async function POST(req: NextRequest) {
   if (authError || !user) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
+
+  const limited = applyRateLimit(`avatar:upload:${user.id}`, STRICT);
+  if (limited) return limited;
 
   let formData: FormData;
   try {

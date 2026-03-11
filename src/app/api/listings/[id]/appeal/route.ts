@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAndUser, unauthorizedResponse, forbiddenResponse, notFoundResponse, serverErrorResponse } from '../../../properties/_helpers';
 import { z } from 'zod';
+import { applyRateLimit, STRICT } from '@/lib/rate-limit';
 
 const Schema = z.object({
   appeal_explanation: z.string().min(50, 'Appeal explanation must be at least 50 characters').max(3000),
@@ -11,15 +12,20 @@ const MAX_APPEALS = 3;
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
 
+  const { id } = await params;
+
+  const limited = applyRateLimit(`appeal:${user.id}`, STRICT);
+  if (limited) return limited;
+
   const { data: listing } = await supabase
     .from('property_listings')
     .select('id, created_by, status')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (!listing) return notFoundResponse('Listing not found');
@@ -32,7 +38,7 @@ export async function POST(
   const { count: appealCount } = await supabase
     .from('listing_verification_logs')
     .select('id', { count: 'exact', head: true })
-    .eq('listing_id', params.id)
+    .eq('listing_id', id)
     .eq('verification_type', 'appeal_submitted');
 
   if ((appealCount ?? 0) >= MAX_APPEALS) {
@@ -61,7 +67,7 @@ export async function POST(
       appeal_evidence_urls: evidence_files ?? [],
       updated_at: now,
     })
-    .eq('id', params.id)
+    .eq('id', id)
     .select('id, status, appeal_submitted_at')
     .single();
 
@@ -70,7 +76,7 @@ export async function POST(
   const { data: logEntry } = await supabase
     .from('listing_verification_logs')
     .insert({
-      listing_id: params.id,
+      listing_id: id,
       admin_id: null,
       verification_type: 'appeal_submitted',
       verification_result: 'flagged_for_manual_review',
@@ -81,7 +87,7 @@ export async function POST(
     .single();
 
   await supabase.from('listing_status_history').insert({
-    listing_id: params.id,
+    listing_id: id,
     old_status: 'rejected',
     new_status: 'under_appeal',
     changed_by: user.id,
@@ -92,7 +98,7 @@ export async function POST(
   return NextResponse.json({
     success: true,
     data: {
-      listing_id: params.id,
+      listing_id: id,
       status: updated.status,
       appeal_submitted_at: updated.appeal_submitted_at,
       verification_log_id: logEntry?.id ?? null,

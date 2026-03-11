@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAndUser, unauthorizedResponse, forbiddenResponse, CAM_BOUNDS } from '../_helpers';
 import { z } from 'zod';
+import { applyRateLimit, STANDARD } from '@/lib/rate-limit';
 
 const Schema = z.object({
   latitude: z.number().min(-90).max(90),
@@ -22,6 +23,9 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
 export async function POST(req: NextRequest) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
+
+  const limited = applyRateLimit(`validate-coords:${user.id}`, STANDARD);
+  if (limited) return limited;
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   if (!profile || !['landlord', 'agent'].includes(profile.role)) {

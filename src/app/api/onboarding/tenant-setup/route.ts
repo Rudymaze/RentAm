@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { applyRateLimit, STRICT } from '@/lib/rate-limit';
 
 const MOVE_IN_TIMELINES = ['immediate', '1-3 months', 'flexible'] as const;
 const PROPERTY_TYPES = ['apartment', 'house', 'villa', 'commercial', 'land'] as const;
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest) {
   if (authError || !user) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
+
+  const limited = applyRateLimit(`onboarding:tenant:${user.id}`, STRICT);
+  if (limited) return limited;
 
   const body = await request.json().catch(() => null);
   const parsed = tenantSetupSchema.safeParse(body);

@@ -1,20 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminFromRequest } from '../../../cities/_helpers';
 
-// Rate limiter: 20 req/min per user
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-function checkRateLimit(userId: string, ip: string): boolean {
-  const key = `admin-metrics:${userId}:${ip}`;
-  const now = Date.now();
-  const entry = rateLimitMap.get(key);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + 60_000 });
-    return true;
-  }
-  if (entry.count >= 20) return false;
-  entry.count++;
-  return true;
-}
+import { applyRateLimit, MODERATE } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
   let userId: string;
@@ -23,10 +10,8 @@ export async function GET(req: NextRequest) {
     ({ userId, adminSupabase } = await verifyAdminFromRequest(req));
   } catch (res) { return res as Response; }
 
-  const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown';
-  if (!checkRateLimit(userId, ip)) {
-    return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
-  }
+  const limited = applyRateLimit(`admin-metrics:${userId}`, MODERATE);
+  if (limited) return limited;
 
   // Parse and validate query params
   const sp = req.nextUrl.searchParams;

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAndUser, unauthorizedResponse, notFoundResponse, serverErrorResponse } from '../../_helpers';
 import { z } from 'zod';
+import { applyRateLimit, MODERATE } from '@/lib/rate-limit';
 
 const Schema = z.object({ listing_id: z.string().uuid('Invalid listing ID') });
 
 export async function POST(req: NextRequest) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
+
+  const limited = applyRateLimit(`fav:toggle:${user.id}`, MODERATE);
+  if (limited) return limited;
 
   let body: unknown;
   try { body = await req.json(); } catch {

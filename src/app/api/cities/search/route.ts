@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { applyRateLimit, STANDARD } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
   const cookieStore = await cookies();
@@ -19,6 +20,9 @@ export async function GET(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
+
+  const limited = applyRateLimit(`cities:search:${user.id}`, STANDARD);
+  if (limited) return limited;
 
   const { searchParams } = req.nextUrl;
   const query = (searchParams.get('q') ?? '').trim();

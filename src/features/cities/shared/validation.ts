@@ -18,7 +18,7 @@ export type CameroonRegion = typeof CAMEROON_REGIONS[number];
 export const CitySchema = z.object({
   nameEn: z.string().min(2, 'Name must be at least 2 characters').max(100),
   nameFr: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').max(100),
-  region: z.enum(CAMEROON_REGIONS, { errorMap: () => ({ message: 'Invalid Cameroon region' }) }),
+  region: z.enum(CAMEROON_REGIONS, { error: 'Invalid Cameroon region' }),
   latitude: z
     .number()
     .min(1.67, 'Latitude must be within Cameroon bounds')

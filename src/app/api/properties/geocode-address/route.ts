@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAndUser, unauthorizedResponse, forbiddenResponse } from '../_helpers';
 import { geocodeAddress } from '@/features/geolocation/services/geocodingService';
 import { z } from 'zod';
+import { applyRateLimit, EXTERNAL } from '@/lib/rate-limit';
 
 const Schema = z.object({
   address: z.string().min(3, 'Address must be at least 3 characters').max(500),
@@ -10,6 +11,9 @@ const Schema = z.object({
 export async function POST(req: NextRequest) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
+
+  const limited = applyRateLimit(`geocode:${user.id}`, EXTERNAL);
+  if (limited) return limited;
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
   if (!profile || !['landlord', 'agent'].includes(profile.role)) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAndUser, unauthorizedResponse, serverErrorResponse } from '../../properties/_helpers';
 import { z } from 'zod';
+import { applyRateLimit, STRICT } from '@/lib/rate-limit';
 
 const RESOURCE_TYPES = ['listing', 'user', 'inquiry'] as const;
 const REASONS = ['spam', 'scam_or_fraud', 'inappropriate_content', 'harassment', 'other'] as const;
@@ -16,6 +17,9 @@ const Schema = z.object({
 export async function POST(req: NextRequest) {
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
+
+  const limited = applyRateLimit(`complaint:submit:${user.id}`, STRICT);
+  if (limited) return limited;
 
   let body: unknown;
   try { body = await req.json(); } catch {

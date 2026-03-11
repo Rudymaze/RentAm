@@ -1,8 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { applyRateLimit, STRICT, clientKey } from '@/lib/rate-limit';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // Rate-limit by IP before auth resolves (prevents unauthenticated spam)
+  const ipLimited = applyRateLimit(`oauth:sync:${clientKey(req)}`, STRICT);
+  if (ipLimited) return ipLimited;
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

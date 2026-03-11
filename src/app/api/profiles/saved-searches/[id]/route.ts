@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAndUser, unauthorizedResponse, forbiddenResponse, notFoundResponse, serverErrorResponse } from '../../../properties/_helpers';
 
-// Simple in-memory rate limiter: 20 deletes/min per user
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + 60_000 });
-    return true;
-  }
-  if (entry.count >= 20) return false;
-  entry.count++;
-  return true;
-}
+import { applyRateLimit, MODERATE } from '@/lib/rate-limit';
 
 export async function DELETE(
   _req: NextRequest,
@@ -22,9 +10,8 @@ export async function DELETE(
   const { supabase, user, authError } = await getSupabaseAndUser();
   if (authError || !user) return unauthorizedResponse();
 
-  if (!checkRateLimit(user.id)) {
-    return NextResponse.json({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }, { status: 429 });
-  }
+  const limited = applyRateLimit(`saved-search:delete:${user.id}`, MODERATE);
+  if (limited) return limited;
 
   const { id } = await params;
 
